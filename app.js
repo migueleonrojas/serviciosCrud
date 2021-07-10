@@ -33,7 +33,7 @@ app.use((req, res, next) => {
 
 
 
-mongoose.connect('mongodb://localhost:27017/portalDePago', {
+mongoose.connect('mongodb+srv://migueleonrojas:Bolivariano.2@cluster0.4ea1g.mongodb.net/test', {
     useUnifiedTopology: true,
     useNewUrlParser: true
 } , (err, res) => {
