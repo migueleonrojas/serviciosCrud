@@ -1,6 +1,9 @@
 {
   "name": "basededatosportal",
   "version": "1.0.0",
+  "engines": {
+    "node": "14.16.1"
+  },
   "description": "Base de datos del portal de pago",
   "main": "app.js",
   "scripts": {
