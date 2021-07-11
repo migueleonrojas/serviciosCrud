@@ -1,6 +1,9 @@
 {
   "name": "basededatosportal",
   "version": "1.0.0",
+  "engines": {
+    "node": "14.16.1"
+  },
   "description": "Base de datos del portal de pago",
   "main": "app.js",
   "scripts": {
@@ -10,16 +13,11 @@
   "author": "Miguel Leon",
   "license": "ISC",
   "dependencies": {
-    "@heroku-cli/plugin-buildpacks": "^7.54.0",
-    "@heroku/buildpack-registry": "^1.0.1",
-    "async-file": "^2.0.2",
     "bcrypt": "^5.0.1",
     "body-parser": "^1.19.0",
-    "cli-ux": "^4.9.3",
     "express": "^4.17.1",
     "express-validator": "^6.12.0",
     "gem": "^2.4.3",
-    "got": "^9.6.0",
     "heroku": "^7.56.0",
     "http": "^0.0.1-security",
     "method-override": "^3.0.0",
@@ -27,7 +25,6 @@
     "mongoose": "^5.12.14",
     "mongoose-unique-validator": "^2.0.3",
     "nodemailer": "^6.6.2",
-    "phoenix": "^1.5.9",
     "yup": "^0.32.9"
   },
   "devDependencies": {
