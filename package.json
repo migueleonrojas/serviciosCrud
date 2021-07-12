@@ -2,17 +2,19 @@
   "name": "basededatosportal",
   "version": "1.0.0",
   "engines": {
-    "node": "14.16.1"
+    "node": "14.16.1",
+    "npm": "7.15.0"
   },
   "description": "Base de datos del portal de pago",
   "main": "app.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node app.js"
+    "start": "nodemon app.js"
   },
   "author": "Miguel Leon",
   "license": "ISC",
   "dependencies": {
+    "@heroku-cli/plugin-buildpacks": "^7.54.0",
     "bcrypt": "^5.0.1",
     "body-parser": "^1.19.0",
     "express": "^4.17.1",

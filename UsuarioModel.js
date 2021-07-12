@@ -3,7 +3,7 @@ const mongoose = require('mongoose');//importando mongoose
 const Schema = mongoose.Schema;  // usando el schema de mongoose
 const uniqueValidator = require('mongoose-unique-validator');
 const { boolean } = require('yup');
-
+const validator = require('validator');
 
 
 var fechaMaxima = function(fecha) {
@@ -170,8 +170,8 @@ const usuarioschema = new Schema(
             type:String,
             required:[true, "No puede estar vacio el campo Estatus"],
             match:[
-                /(inactivo)+$/i,
-                "Debe indicar 'inactivo' ya que este usuario en nuevo"
+                /(activo|bloqueado|inactivo)+$/i,
+                "Debe indicar 'activo','bloqueado' o 'inactivo'"
             ],
             
         },

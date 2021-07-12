@@ -12,7 +12,6 @@ const crypto = require('crypto');
 
 const app = express();
 
-app.set('port', process.env.PORT || 3000);
 
 const router = express.Router();
 
@@ -47,9 +46,9 @@ mongoose.connect('mongodb+srv://migueleonrojas:Bolivariano.2@cluster0.4ea1g.mong
 
 
 
-app.listen(app.get('port'), () =>  {
+app.listen(3000, () =>  {
 
-    console.log(`El servidor esta en el puerto ${app.get('port')}`);
+    console.log(`El servidor esta en el puerto 3000`);
 
 });
 
@@ -59,11 +58,20 @@ router.get('/usuario', (req, res) => {
     res.send( { mensaje: "operacion en el portal de pago get exitosa" } );
 });
 
-
+let fechaDeValidacion;
+let codigoValidacion;
 
 router.post('/creandoUsuario', (req, res) => {  
 
-    
+    let fechaDeVencimiento = `${new Date(
+        new Date().getFullYear(),
+        new Date().getMonth(),
+        new Date().getDate(),
+        new Date().getHours(),
+        new Date().getMinutes() + 2,
+        new Date().getSeconds() + 30
+    )}`;
+
     var miUsuarioPorCrear = new UsuarioModel();
 
     miUsuarioPorCrear.Nombre = req.body.Nombre;
@@ -76,9 +84,16 @@ router.post('/creandoUsuario', (req, res) => {
     miUsuarioPorCrear.Saldo = req.body.Saldo;
     miUsuarioPorCrear.Rol = req.body.Rol;
 
-    if(req.body.Clave != req.body.ClaveVerificar){
-        res.send( {error:{ repuesta : "las contraseñas no son iguales" } } );
+    
+    if(typeof req.body.tVal != Date && req.body.tVal >= fechaDeValidacion){
+        res.send( {error:{ repuesta : "El codigo de validacion esta expirado" } } );
     }
+
+    else if(req.body.cod != codigoValidacion){
+        res.send( {error:{ repuesta : "El codigo de validacion es invalido" } } );
+    }
+    
+
     else{
 
         miUsuarioPorCrear.save( (err, respuesta) => { 
@@ -229,27 +244,34 @@ let transporter = nodemailer.createTransport({
 router.post('/enviarMail',  (req, res) => {
 
 
-    let codigoAleatorio = crypto.randomBytes(20).toString('hex');
+    codigoValidacion = crypto.randomBytes(20).toString('hex');
 
     let info = transporter.sendMail({
         from: `"Miguel Leon " <migueleonrojas@gmail.com>`, // sender address
         to: `${req.body.correo}`, // list of receivers
         subject: "Codigo de validacion de correo", // Subject line
-        text: `Su codigo de validacion es: ${codigoAleatorio}`, // plain text body
-        html: `<p>Su codigo de validacion es: <b>${codigoAleatorio}</b></p>`, // html body
-    }
+        text: `Su codigo de validacion es: ${codigoValidacion}`, // plain text body
+        html: `<p>Su codigo de validacion es: <b>${codigoValidacion}</b></p>`, // html body
+    });
 
-    );
+    fechaDeValidacion = `${new Date(
+        new Date().getFullYear(),
+        new Date().getMonth(),
+        new Date().getDate(),
+        new Date().getHours(),
+        new Date().getMinutes() + 2,
+        new Date().getSeconds() + 30
+    )}`;
 
     res.send( { 
         mensaje: "email enviado con exito", 
-        codigoVerificacion: `${codigoAleatorio}`,
-        fechaDeVencimiento: `${new Date(
-            new Date().getFullYear(),
-            new Date().getMonth(),
-            new Date().getDate()
-        )}`
+        codigoVerificacion: `${codigoValidacion}`,
+        fechaDeVencimiento: fechaDeValidacion
+
+        
     });
+
+    
 
     
 
