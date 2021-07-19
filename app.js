@@ -63,14 +63,15 @@ let codigoValidacion;
 
 router.post('/creandoUsuario', (req, res) => {  
 
-    let fechaDeVencimiento = `${new Date(
+    let fechaDeVencimiento = new Date(
         new Date().getFullYear(),
         new Date().getMonth(),
         new Date().getDate(),
         new Date().getHours(),
-        new Date().getMinutes() + 2,
-        new Date().getSeconds() + 30
-    )}`;
+        new Date().getMinutes() + 0,
+        new Date().getSeconds() + 5,
+        new Date().getMilliseconds()
+    );
 
     var miUsuarioPorCrear = new UsuarioModel();
 
@@ -83,16 +84,17 @@ router.post('/creandoUsuario', (req, res) => {
     miUsuarioPorCrear.Estatus = req.body.Estatus;
     miUsuarioPorCrear.Saldo = req.body.Saldo;
     miUsuarioPorCrear.Rol = req.body.Rol;
-
+    miUsuarioPorCrear.Intentos = req.body.Intentos;
     
-    if(typeof req.body.tVal != Date && req.body.tVal >= fechaDeValidacion){
-        res.send( {error:{ repuesta : "El codigo de validacion esta expirado" } } );
+    
+
+    if( req.body.cod == undefined || req.body.cod != codigoValidacion){
+        res.send( {mensaje:{codigo:2, repuesta : "El codigo de validacion es invalido", fecha:req.body.tVal } } );
     }
 
-    else if(req.body.cod != codigoValidacion){
-        res.send( {error:{ repuesta : "El codigo de validacion es invalido" } } );
+    else if( fechaDeValidacion == undefined || req.body.tVal > fechaDeValidacion.getTime()){
+        res.send( {mensaje:{codigo:3, repuesta : "El codigo de validacion esta expirado"} } );
     }
-    
 
     else{
 
@@ -105,7 +107,7 @@ router.post('/creandoUsuario', (req, res) => {
             }
 
             else{
-                res.send(  { error :{ codigo: 0, respuesta: 'Usuario creado con exito' }, usuario: respuesta } )
+                res.send(  { mensaje :{ codigo: 1, respuesta: 'Usuario creado con exito' }, usuario: respuesta } )
             }
             
         }); 
@@ -127,9 +129,63 @@ router.post('/consultarUsuario', (req, res) => {
 
     UsuarioModel.findOne(query, (err, retorno) => {
 
-        if(err) res.send( { estado :{ codigo: 0, respuesta: err.message } });
+        if(err){
 
-        res.send(  { estado :{ codigo: 0, respuesta: 'Operacion de consulta por user y mail exitosa' }, usuario: retorno } );
+            res.send( { estado :{ codigo: 0, respuesta: err.message } });
+
+        } 
+
+        else{
+
+            res.send(  { estado :{ codigo: 1, respuesta: 'Operacion de consulta por user y mail exitosa' }, usuario: retorno } );
+
+        }
+
+    });
+});
+
+router.post('/consultaPorNombreDeUsuario', (req, res) =>{
+
+    let query = { Usuario: { $eq : req.body.Usuario} };
+
+    UsuarioModel.findOne(query, (err, retorno) => {
+
+        if(err){
+
+            res.send({ mensaje :{ codigo: 0, respuesta: err.message } });
+
+        }
+
+        else{
+
+            res.send(  { mensaje :{ codigo: 1, respuesta: 'Operacion de consulta por user exitosa' }, usuario: retorno } );
+
+        }
+
+    })
+
+});
+
+
+router.post('/loguearUsuario', (req, res) => {  
+
+
+    //{ $or: [ { "edad": {$gte: 60}}, { "edad": {$lte:10}} ]}
+    
+    let query = { $and: [ { Usuario: { $eq : req.body.Usuario} }, { Clave: { $eq: req.body.Clave  } } ]  };
+
+
+    UsuarioModel.findOne(query, (err, retorno) => {
+
+        if(err) {
+            res.send( { mensaje :{ codigo: 0, respuesta: err.message } });
+        }
+        else{
+
+            res.send(  { mensaje :{ codigo: 1, respuesta: 'Operacion de consulta por user y password exitosa' }, usuario: retorno } );
+        }
+
+        
 
     });
 });
@@ -139,9 +195,17 @@ router.post('/consultarUltimoUsuario', (req, res) => {
 
     UsuarioModel.findOne((err, retorno) => {
 
-        if(err) res.send( { estado :{ codigo: 0, respuesta: err.message } });
+        if(err) {
+            res.send( { estado :{ codigo: 0, respuesta: err.message } });
+        }
 
-        res.send(  { estado :{ codigo: 0, respuesta: 'Operacion de consulta por id es exitosa' }, usuario: retorno } );
+        else{
+
+            res.send(  { estado :{ codigo: 0, respuesta: 'Operacion de consulta por id es exitosa' }, usuario: retorno } );
+
+        }
+
+        
 
     }).sort({$natural:-1}).limit(1);
 });
@@ -153,22 +217,53 @@ router.post('/consultarUltimoUsuario', (req, res) => {
 
 router.put('/actualizarUsuario', (req, res) => {  
 
-    let query = { Usuario: req.body.Usuario };
+    let query = { Usuario: req.body.usuario };
     
     UsuarioModel.findOne(query, (err, retorno) => {
 
-        
-        retorno.Registrado = false;
-        retorno.Estatus = "I";
-    
-        
-        //res.send(retorno);
+        if(retorno == null){
 
-        retorno.save( (err, respuesta) => { 
-            if(err) res.send( { estado :{ codigo: 0, respuesta: err.message } });
+            res.send(  { estado :{ codigo: 0, respuesta: 'Operacion de actualizacion no es exitosa' }, persona: retorno } );
+        }
+        else{
 
-            res.send(  { estado :{ codigo: 0, respuesta: 'Operacion de actualizacion es exitosa' }, persona: respuesta } );
-        });
+            if(req.body.clave != retorno.Clave){
+
+                
+                if(retorno.Intentos > 0){
+
+                    retorno.Intentos-= 1;
+                }
+                
+                retorno.Estatus = "activo";
+
+                if(retorno.Intentos == 0){
+
+                    retorno.Estatus = "bloqueado";
+                }
+
+                retorno.save( (err, respuesta) => { 
+                    if(err) {
+                        res.send( { estado :{ codigo: 0, respuesta: err.message, persona: respuesta } });
+                    }
+        
+                    else{
+        
+                        res.send(  { estado :{ codigo: 1, respuesta: 'Operacion de actualizacion es exitosa' }, persona: respuesta } );
+        
+                    }
+        
+                    
+                });
+            }
+
+            else{
+                res.send(  { estado :{ codigo: 1, respuesta: 'Operacion de consulta sin actualizar es exitosa' }, persona: retorno } );
+
+            }
+
+        }
+        
     });
 });
 
@@ -243,7 +338,6 @@ let transporter = nodemailer.createTransport({
 
 router.post('/enviarMail',  (req, res) => {
 
-
     codigoValidacion = crypto.randomBytes(20).toString('hex');
 
     let info = transporter.sendMail({
@@ -254,14 +348,15 @@ router.post('/enviarMail',  (req, res) => {
         html: `<p>Su codigo de validacion es: <b>${codigoValidacion}</b></p>`, // html body
     });
 
-    fechaDeValidacion = `${new Date(
+    fechaDeValidacion = new Date(
         new Date().getFullYear(),
         new Date().getMonth(),
         new Date().getDate(),
         new Date().getHours(),
-        new Date().getMinutes() + 2,
-        new Date().getSeconds() + 30
-    )}`;
+        new Date().getMinutes() + 0,
+        new Date().getSeconds() + 30,
+        new Date().getMilliseconds()
+    );
 
     res.send( { 
         mensaje: "email enviado con exito", 
@@ -271,15 +366,70 @@ router.post('/enviarMail',  (req, res) => {
         
     });
 
-    
+});
 
-    
+
+router.post('/enviarUsuarioPorCorreo', (req, res) =>{
+
+    let query = { Correo: req.body.correo };
+
+    UsuarioModel.findOne(query, (err, retorno) => {
+
+        if(retorno == null){
+
+            res.send({codigo:0,mensaje:`El correo ${req.body.correo} no se encuentra registrado`});
+        }
+        else{
+
+            let usuario = retorno.Usuario;
+
+            let info = transporter.sendMail({
+                from: `"Miguel Leon " <migueleonrojas@gmail.com>`, // sender address
+                to: `${req.body.correo}`, // list of receivers
+                subject: "El nombre de su usuario", // Subject line
+                text: `El nombre de su usuario es: ${usuario}`, // plain text body
+                html: `<p>El nombre de su usuario es: <b>${usuario}</b></p>`, // html body
+            });
+
+            res.send({codigo:1,mensaje:`El nombre del usuario fue enviado a su correo ${req.body.correo}`});
+
+        }
+
+    });
 
 });
 
 
+router.post('/enviarPassPorCorreo', (req, res) =>{
 
+    let query = { Usuario: req.body.usuario };
 
+    UsuarioModel.findOne(query, (err, retorno) => {
+
+        if(retorno == null){
+
+            res.send({codigo:0,mensaje:`El usuario ${req.body.usuario} no se encuentra registrado`});
+        }
+        else{
+
+            let clave = retorno.Clave;
+            let correo = retorno.Correo
+
+            let info = transporter.sendMail({
+                from: `"Miguel Leon " <migueleonrojas@gmail.com>`, // sender address
+                to: `${correo}`, // list of receivers
+                subject: "Contraseña de su usuario", // Subject line
+                text: `La clave del usuario "${req.body.usuario}" es: ${clave}`, // plain text body
+                html: `<p>La clave del usuario <b>"${req.body.usuario}"</b> es: <b>${clave}</b></p>`, // html body
+            });
+
+            res.send({codigo:1,mensaje:`Su clave se le envio al correo: ${correo}`});
+
+        }
+
+    });
+
+});
 
 
 app.use(router);

@@ -146,7 +146,7 @@ const usuarioschema = new Schema(
         Create_at: { 
             type: Date, 
             require:true, 
-            default: Date.now()
+            default: new Date()
         },
         Registrado: {
             type: Boolean,
@@ -202,7 +202,25 @@ const usuarioschema = new Schema(
                 /(usuario|administrador)+$/i,
                 "Debe indicar 'usuario' o 'administrador'"
             ],
-        } 
+        },
+        Intentos:{
+            type:Number,
+            required:[true, "No puede estar vacio el campo Intentos"],
+            validate: [
+
+                {
+                    validator:function(Intent){
+
+        
+                        return  Intent >= 0 && Intent <= 3;
+
+
+                    },
+                    message:'Debe ingresar un valor en un rango del 0 al 3'
+                }
+
+            ]
+        }
     }
 );
 
