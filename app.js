@@ -10,6 +10,7 @@ const bcrypt = require('bcrypt');
 const moment = require('moment');
 const crypto = require('crypto');
 
+
 const app = express();
 
 
@@ -31,8 +32,11 @@ app.use((req, res, next) => {
 });
 
 
+const uriant = `mongodb+srv://migueleonrojas:Bolivariano.2@cluster0.4ea1g.mongodb.net/test`;
 
-mongoose.connect('mongodb+srv://migueleonrojas:Bolivariano.2@cluster0.4ea1g.mongodb.net/test', {
+//
+
+mongoose.connect(uriant, {
     useUnifiedTopology: true,
     useNewUrlParser: true
 } , (err, res) => {
@@ -43,6 +47,8 @@ mongoose.connect('mongodb+srv://migueleonrojas:Bolivariano.2@cluster0.4ea1g.mong
     console.log('Conexion con el servidor de manera exitosa');
 
 });
+
+
 
 
 
@@ -60,6 +66,9 @@ router.get('/usuario', (req, res) => {
 
 let fechaDeValidacion;
 let codigoValidacion;
+let codigoToken;
+let fechaRestablecerIntentos;
+let fechaTemporizador;
 
 router.post('/creandoUsuario', (req, res) => {  
 
@@ -223,33 +232,68 @@ router.put('/actualizarUsuario', (req, res) => {
 
         if(retorno == null){
 
-            res.send(  { estado :{ codigo: 0, respuesta: 'Operacion de actualizacion no es exitosa' }, persona: retorno } );
+            res.send(  { estado :{ codigo: 3, respuesta: 'Operacion de actualizacion no es exitosa' }, persona: retorno } );
         }
         else{
 
             if(req.body.clave != retorno.Clave){
 
+                if(retorno.Intento == 3){
+                    fechaRestablecerIntentos = new Date(
+                        new Date().getFullYear(),
+                        new Date().getMonth(),
+                        new Date().getDate(),
+                        new Date().getHours(),
+                        new Date().getMinutes() + 0,
+                        new Date().getSeconds() + 30,
+                        new Date().getMilliseconds()
+                    );
+                }
+
+                
+
+                if( retorno.Estatus != "bloqueado" && new Date() > fechaRestablecerIntentos){
+                    retorno.Intentos = 3;
+                }
+
+                if(retorno.Intento != 3){
+
+                    fechaRestablecerIntentos = new Date(
+                        new Date().getFullYear(),
+                        new Date().getMonth(),
+                        new Date().getDate(),
+                        new Date().getHours(),
+                        new Date().getMinutes() + 0,
+                        new Date().getSeconds() + 30,
+                        new Date().getMilliseconds()
+                    );
+
+                }
+
                 
                 if(retorno.Intentos > 0){
 
-                    retorno.Intentos-= 1;
+                    retorno.Intentos--;
+                   
                 }
                 
-                retorno.Estatus = "activo";
+                
 
                 if(retorno.Intentos == 0){
 
                     retorno.Estatus = "bloqueado";
+                    /* retorno.Estatus = "activo";
+                    retorno.Intentos = 3; */
                 }
 
                 retorno.save( (err, respuesta) => { 
                     if(err) {
-                        res.send( { estado :{ codigo: 0, respuesta: err.message, persona: respuesta } });
+                        res.send( { estado :{ codigo: -1, respuesta: err.message, persona: respuesta } });
                     }
         
                     else{
         
-                        res.send(  { estado :{ codigo: 1, respuesta: 'Operacion de actualizacion es exitosa' }, persona: respuesta } );
+                        res.send(  { estado :{ codigo: 0, respuesta: 'Operacion de actualizacion es exitosa' }, persona: respuesta } );
         
                     }
         
@@ -258,6 +302,11 @@ router.put('/actualizarUsuario', (req, res) => {
             }
 
             else{
+
+                if(retorno.Estatus != "bloqueado" && req.body.clave == retorno.Clave){
+                    retorno.Intentos = 3;
+                }
+
                 res.send(  { estado :{ codigo: 1, respuesta: 'Operacion de consulta sin actualizar es exitosa' }, persona: retorno } );
 
             }
@@ -430,6 +479,125 @@ router.post('/enviarPassPorCorreo', (req, res) =>{
     });
 
 });
+
+router.post('/enviarTokenDesUser', (req, res) =>{
+
+    codigoToken = crypto.randomBytes(40).toString('hex');
+
+    let query = { Usuario: req.body.usuario };
+
+    UsuarioModel.findOne(query, (err, retorno) => {
+
+        if(retorno == null){
+
+            res.send({codigo:0,mensaje:`El usuario ${req.body.usuario} no se encuentra registrado`});
+        }
+
+        else if(retorno.Estatus != "bloqueado"){
+
+            res.send({codigo:-1,mensaje:`El usuario ${req.body.usuario} no se encuentra bloqueado`});
+
+        }
+
+        else{
+        
+            if(fechaTemporizador == undefined){
+
+                let correo = retorno.Correo
+
+                fechaTemporizador = new Date(
+                    new Date().getFullYear(),
+                    new Date().getMonth(),
+                    new Date().getDate(),
+                    new Date().getHours(),
+                    new Date().getMinutes() + 0,
+                    new Date().getSeconds() + 30,
+                    new Date().getMilliseconds()
+                );
+
+                let info = transporter.sendMail({
+                    from: `"Miguel Leon " <migueleonrojas@gmail.com>`, // sender address
+                    to: `${correo}`, // list of receivers
+                    subject: "Token para desbloquear el usuario", // Subject line
+                    text: `Ingrese al siguiente enlace:  ${codigoValidacion}`, // plain text body
+                    html: `<p>Ingrese al siguiente enlace:</p> 
+                           <a href="http://localhost:3000/desbloquearConEnlace/${retorno.Usuario}/${codigoToken}/${fechaTemporizador.getTime()}">Desbloquear usuario</a>`, // html body
+                });
+
+                
+                
+
+                
+
+                res.send({codigo:1,mensaje:`Su clave especial para desbloquear fue enviado al correo: ${correo}`, correo:correo});
+
+            }
+
+            else{
+
+                if(req.body.fecha < fechaTemporizador){
+                    res.send({codigo:2,mensaje:`Debe esperar un rato para poder enviar otro token de nuevo`});
+                }  
+                else{
+                    fechaTemporizador = undefined;
+                    
+                }
+                
+
+            }
+            
+
+        }
+
+    });
+
+});
+
+
+router.get('/desbloquearConEnlace/:usuario/:token/:fechaVal', (req, res) => {
+
+    let query = { Usuario: req.params.usuario };
+    
+    UsuarioModel.findOne(query, (err, retorno) => {
+
+        if(retorno != null){
+
+            if(req.params.token == codigoToken && req.params.fechaVal > new Date().getTime() && retorno.Estatus == 'bloqueado'){
+
+                retorno.Estatus = 'activo';
+                retorno.Intentos = 3;
+
+                retorno.save();
+
+                res.send(`<h1>Se ha desbloqueado el usuario ${req.params.usuario}</h1>`)
+            }
+
+            else if(retorno.Estatus != 'bloqueado'){
+
+                res.send(`<h1>El usuario ${req.params.usuario} ya se desbloqueo</h1>`)
+
+            }
+
+            else{
+
+                res.send(`<h1>El token es invalido o ya esta expirado</h1>`)
+            }   
+
+        }
+
+        else{
+
+            res.send(`<h1>El usuario no existe</h1>`)
+
+        }
+
+
+    });
+
+
+});
+
+
 
 
 app.use(router);
