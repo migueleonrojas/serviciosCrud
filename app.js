@@ -303,8 +303,9 @@ router.put('/actualizarUsuario', (req, res) => {
 
             else{
 
-                if(retorno.Estatus != "bloqueado" && req.body.clave == retorno.Clave){
+                if(retorno.Estatus == "activo" && req.body.clave == retorno.Clave){
                     retorno.Intentos = 3;
+                    retorno.save();
                 }
 
                 res.send(  { estado :{ codigo: 1, respuesta: 'Operacion de consulta sin actualizar es exitosa' }, persona: retorno } );
